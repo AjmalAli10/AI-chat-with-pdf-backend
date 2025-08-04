@@ -59,8 +59,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// Serve static files (public directory only)
 app.use(express.static(path.join(__dirname, "../public")));
 
 // Routes
@@ -92,5 +91,5 @@ app.use("*", (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`📁 Uploads: http://localhost:${PORT}/uploads`);
+  console.log(`📁 Files served via Vercel Blob URLs`);
 });

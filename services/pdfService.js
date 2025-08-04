@@ -5,6 +5,7 @@ const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
 const dotenv = require("dotenv");
 const { InferenceClient } = require("@huggingface/inference");
+const { put } = require("@vercel/blob");
 
 dotenv.config();
 
@@ -16,34 +17,38 @@ class PDFService {
   }
 
   /**
-   * Step 1: PDF Upload and Storage
+   * Step 1: PDF Upload and Storage using Vercel Blob
    */
   async uploadPDF(file) {
-    const uploadDir = process.env.UPLOAD_DIR || "./uploads";
-    await fs.ensureDir(uploadDir);
-
     const fileId = uuidv4();
     const fileName = `${fileId}_${file.originalname}`;
-    const filePath = path.join(uploadDir, fileName);
 
-    await fs.writeFile(filePath, file.buffer);
+    try {
+      // Upload to Vercel Blob
+      const blob = await put(fileName, file.buffer, {
+        access: "public",
+        addRandomSuffix: false,
+      });
 
-    return {
-      fileId,
-      fileName,
-      filePath,
-      originalName: file.originalname,
-      size: file.size,
-    };
+      return {
+        fileId,
+        fileName,
+        blobUrl: blob.url,
+        originalName: file.originalname,
+        size: file.size,
+      };
+    } catch (error) {
+      console.error("Error uploading to Vercel Blob:", error);
+      throw new Error(`Failed to upload PDF: ${error.message}`);
+    }
   }
 
   /**
    * Step 2: PDF Parsing - Page-wise Text Extraction
    */
-  async parsePDF(filePath) {
+  async parsePDF(fileBuffer) {
     try {
-      const dataBuffer = await fs.readFile(filePath);
-      const data = await pdfParse(dataBuffer, {
+      const data = await pdfParse(fileBuffer, {
         // Enable page-by-page parsing
         max: 0, // Parse all pages
         version: "v2.0.550",
@@ -603,27 +608,15 @@ class PDFService {
       // Check if request was aborted after upload
       if (signal && signal.aborted) {
         console.log("❌ PDF processing aborted after upload");
-        // Clean up uploaded file
-        try {
-          await fs.remove(uploadResult.filePath);
-        } catch (cleanupError) {
-          console.error("Error cleaning up aborted upload:", cleanupError);
-        }
         throw new Error("Request aborted by client");
       }
 
       // Step 2: Parse
-      const parsedData = await this.parsePDF(uploadResult.filePath);
+      const parsedData = await this.parsePDF(file.buffer);
 
       // Check if request was aborted after parsing
       if (signal && signal.aborted) {
         console.log("❌ PDF processing aborted after parsing");
-        // Clean up uploaded file
-        try {
-          await fs.remove(uploadResult.filePath);
-        } catch (cleanupError) {
-          console.error("Error cleaning up aborted upload:", cleanupError);
-        }
         throw new Error("Request aborted by client");
       }
 
@@ -633,12 +626,6 @@ class PDFService {
       // Check if request was aborted after structured extraction
       if (signal && signal.aborted) {
         console.log("❌ PDF processing aborted after structured extraction");
-        // Clean up uploaded file
-        try {
-          await fs.remove(uploadResult.filePath);
-        } catch (cleanupError) {
-          console.error("Error cleaning up aborted upload:", cleanupError);
-        }
         throw new Error("Request aborted by client");
       }
 
@@ -653,7 +640,7 @@ class PDFService {
         originalName: uploadResult.originalName,
         parsedData,
         structuredData: processedData,
-        uploadPath: uploadResult.filePath,
+        blobUrl: uploadResult.blobUrl,
       };
     } catch (error) {
       console.error("Error processing PDF:", error);
