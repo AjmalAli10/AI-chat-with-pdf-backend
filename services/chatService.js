@@ -28,8 +28,41 @@ class ChatService {
   async chatWithPDF(query, fileId = null, chatHistory = []) {
     try {
       let relevantChunks = [];
+      let isPageSpecific = false;
+      let targetPage = null;
 
-      if (fileId) {
+      // Check if this is a page-specific query
+      const pageQueryResult = this.detectPageSpecificQuery(query);
+      if (pageQueryResult.isPageSpecific && fileId) {
+        isPageSpecific = true;
+        targetPage = pageQueryResult.pageNumber;
+        console.log(`📄 Page-specific query detected for page ${targetPage}`);
+
+        // Get chunks for specific page
+        relevantChunks = await vectorDBService.searchByFileIdAndPage(
+          fileId,
+          targetPage,
+          10
+        );
+
+        if (relevantChunks.length === 0) {
+          return {
+            response: `I couldn't find any content on page ${targetPage}. The document might not have that many pages, or the page might be empty.`,
+            context: {
+              chunksUsed: 0,
+              topChunk: "No content found",
+              confidence: 0,
+              isPageSpecific: true,
+              targetPage: targetPage,
+            },
+            metadata: {
+              query: query,
+              fileId: fileId,
+              timestamp: new Date().toISOString(),
+            },
+          };
+        }
+      } else if (fileId) {
         // Chat with specific PDF - get all chunks from that file
         console.log(`💬 Chatting with specific PDF: ${fileId}`);
         relevantChunks = await vectorDBService.searchByFileId(fileId, 10);
@@ -41,9 +74,14 @@ class ChatService {
       }
 
       // Build context from relevant chunks
-      const context = this.buildContext(relevantChunks, fileId);
+      const context = this.buildContext(
+        relevantChunks,
+        fileId,
+        isPageSpecific,
+        targetPage
+      );
 
-      // Generate response using Qwen
+      // Generate response using AI models
       const response = await this.generateResponse(query, context, chatHistory);
 
       return {
@@ -52,6 +90,8 @@ class ChatService {
           chunksUsed: relevantChunks.length,
           topChunk: relevantChunks[0]?.content?.substring(0, 200) + "...",
           confidence: relevantChunks[0]?.score || 0,
+          isPageSpecific: isPageSpecific,
+          targetPage: targetPage,
         },
         metadata: {
           query: query,
@@ -66,21 +106,65 @@ class ChatService {
   }
 
   /**
+   * Detect if a query is asking about a specific page
+   */
+  detectPageSpecificQuery(query) {
+    const lowerQuery = query.toLowerCase();
+
+    // Patterns to detect page-specific queries
+    const pagePatterns = [
+      /page\s+(\d+)/i, // "page 5", "Page 3"
+      /the\s+(\d+)(?:st|nd|rd|th)?\s+page/i, // "the 5th page", "the 3rd page"
+      /page\s+number\s+(\d+)/i, // "page number 5"
+      /(\d+)(?:st|nd|rd|th)?\s+page/i, // "5th page", "3rd page"
+    ];
+
+    for (const pattern of pagePatterns) {
+      const match = lowerQuery.match(pattern);
+      if (match) {
+        const pageNumber = parseInt(match[1]);
+        if (pageNumber > 0) {
+          return {
+            isPageSpecific: true,
+            pageNumber: pageNumber,
+          };
+        }
+      }
+    }
+
+    return {
+      isPageSpecific: false,
+      pageNumber: null,
+    };
+  }
+
+  /**
    * Build context from relevant chunks
    */
-  buildContext(chunks, fileId) {
+  buildContext(chunks, fileId, isPageSpecific = false, targetPage = null) {
     if (chunks.length === 0) {
+      if (isPageSpecific) {
+        return `No content found on page ${targetPage}. The page might be empty or the document might not have that many pages.`;
+      }
       return "No relevant information found in the uploaded documents.";
     }
 
     let context = "Based on the following information from the document:\n\n";
+
+    if (isPageSpecific) {
+      context = `Based on the following information from page ${targetPage}:\n\n`;
+    }
 
     chunks.forEach((chunk, index) => {
       context += `${index + 1}. ${chunk.content}\n\n`;
     });
 
     if (fileId) {
-      context += `\nThis information is from a specific document (ID: ${fileId}).`;
+      if (isPageSpecific) {
+        context += `\nThis information is from page ${targetPage} of a specific document (ID: ${fileId}).`;
+      } else {
+        context += `\nThis information is from a specific document (ID: ${fileId}).`;
+      }
     }
 
     return context;

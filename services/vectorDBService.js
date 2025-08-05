@@ -27,6 +27,18 @@ class VectorDBService {
 
       if (!collectionExists) {
         await this.createCollection();
+      } else {
+        // Check if pageNumber index exists, if not, recreate collection
+        try {
+          await this.client.getCollection(this.collectionName);
+          console.log(`✅ Collection '${this.collectionName}' already exists`);
+        } catch (error) {
+          console.log(
+            `🔄 Recreating collection '${this.collectionName}' with updated indexes`
+          );
+          await this.client.deleteCollection(this.collectionName);
+          await this.createCollection();
+        }
       }
 
       return true;
@@ -62,6 +74,11 @@ class VectorDBService {
       await this.client.createPayloadIndex(this.collectionName, {
         field_name: "section",
         field_schema: "keyword",
+      });
+
+      await this.client.createPayloadIndex(this.collectionName, {
+        field_name: "pageNumber",
+        field_schema: "integer",
       });
 
       console.log(

@@ -9,6 +9,20 @@ async function testPageWiseFunctionality() {
   try {
     console.log("🧪 Testing page-wise functionality...");
 
+    // Force recreate collection with pageNumber index
+    console.log("🔄 Recreating collection with pageNumber index...");
+    const vectorDBService = require("../services/vectorDBService");
+    try {
+      await vectorDBService.client.deleteCollection(
+        vectorDBService.collectionName
+      );
+      console.log("🗑️ Deleted existing collection");
+    } catch (error) {
+      console.log("ℹ️ No existing collection to delete");
+    }
+    await vectorDBService.initializeCollection();
+    console.log("✅ Collection recreated with pageNumber index");
+
     // Create a simple test PDF file using a text file that we'll treat as PDF content
     const testContent = `Page 1: Introduction
 This is the first page of our test document.
