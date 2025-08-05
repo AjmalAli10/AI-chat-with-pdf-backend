@@ -24,10 +24,11 @@ class PDFService {
     const fileName = `${fileId}_${file.originalname}`;
 
     try {
-      // Upload to Vercel Blob
+      // Upload to Vercel Blob (public access)
       const blob = await put(fileName, file.buffer, {
         access: "public",
         addRandomSuffix: false,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
       });
 
       return {
