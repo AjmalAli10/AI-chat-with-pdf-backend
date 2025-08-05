@@ -6,6 +6,7 @@ require("dotenv").config();
 
 const pdfRoutes = require("../routes/pdfRoutes");
 const chatRoutes = require("../routes/chatRoutes");
+const Logger = require("../utils/logger");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,7 +34,7 @@ app.use((req, res, next) => {
   res.on("close", () => {
     // Only abort if the response hasn't been sent yet (client disconnected early)
     if (!responseSent) {
-      console.log("❌ Client disconnected, aborting request");
+      Logger.log("❌ Client disconnected, aborting request");
       controller.abort();
     }
   });
@@ -41,7 +42,7 @@ app.use((req, res, next) => {
   // Set a global timeout for all requests (10 minutes)
   const timeout = setTimeout(() => {
     if (!res.headersSent) {
-      console.log("⏰ Request timeout reached");
+      Logger.log("⏰ Request timeout reached");
       controller.abort();
       res.status(408).json({ error: "Request timeout" });
     }
@@ -73,7 +74,7 @@ app.get("/health", (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  Logger.error(err.stack);
   res.status(500).json({
     error: "Something went wrong!",
     message:
@@ -89,7 +90,7 @@ app.use("*", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`📁 Files served via Vercel Blob URLs`);
+  Logger.log(`🚀 Server running on port ${PORT}`);
+  Logger.log(`📊 Health check: http://localhost:${PORT}/health`);
+  Logger.log(`📁 Files served via Vercel Blob URLs`);
 });

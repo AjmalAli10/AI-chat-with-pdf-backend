@@ -10,6 +10,7 @@ dotenv.config();
 const pdfService = require("../services/pdfService");
 const embeddingService = require("../services/embeddingService");
 const vectorDBService = require("../services/vectorDBService");
+const Logger = require("../utils/logger");
 
 const router = express.Router();
 
@@ -44,7 +45,7 @@ router.post("/upload", upload.single("pdf"), async (req, res) => {
       return res.status(400).json({ error: "No PDF file provided" });
     }
 
-    console.log(`📄 Processing PDF: ${req.file.originalname}`);
+    Logger.log(`📄 Processing PDF: ${req.file.originalname}`);
 
     // Step 1-4: Process PDF through the pipeline
     pdfResult = await pdfService.processPDF(
@@ -83,10 +84,10 @@ router.post("/upload", upload.single("pdf"), async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error uploading PDF:", error);
+    Logger.error("Error uploading PDF:", error);
 
     if (error.name === "AbortError") {
-      console.log("🛑 PDF processing aborted due to client disconnect");
+      Logger.log("🛑 PDF processing aborted due to client disconnect");
       return;
     }
 
@@ -112,7 +113,7 @@ router.get("/files", async (req, res) => {
       files: files,
     });
   } catch (error) {
-    console.error("Error getting files:", error);
+    Logger.error("Error getting files:", error);
     res.status(500).json({
       error: "Failed to get files",
       message: error.message,
@@ -151,7 +152,7 @@ router.get("/file/:fileId", async (req, res) => {
       totalChunks: chunks.length,
     });
   } catch (error) {
-    console.error("Error getting file:", error);
+    Logger.error("Error getting file:", error);
     res.status(500).json({
       error: "Failed to get file",
       message: error.message,
@@ -173,14 +174,14 @@ router.delete("/file/:fileId", async (req, res) => {
     // Delete from Vercel Blob (if we have the blob URL stored)
     // Note: We would need to store blob URLs in the vector database to delete them
     // For now, we'll just delete from the vector database
-    console.log(`🗑️ Deleted file ${fileId} from vector database`);
+    Logger.log(`🗑️ Deleted file ${fileId} from vector database`);
 
     res.json({
       success: true,
       message: "File deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting file:", error);
+    Logger.error("Error deleting file:", error);
     res.status(500).json({
       error: "Failed to delete file",
       message: error.message,
@@ -206,7 +207,7 @@ router.get("/health", async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Health check failed:", error);
+    Logger.error("Health check failed:", error);
     res.status(500).json({
       error: "Health check failed",
       message: error.message,
@@ -236,7 +237,7 @@ router.get("/stats", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getting stats:", error);
+    Logger.error("Error getting stats:", error);
     res.status(500).json({
       error: "Failed to get stats",
       message: error.message,

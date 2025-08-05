@@ -5,6 +5,7 @@ dotenv.config();
 
 const chatService = require("../services/chatService");
 const vectorDBService = require("../services/vectorDBService");
+const Logger = require("../utils/logger");
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.post("/query", async (req, res) => {
       return res.status(400).json({ error: "Query is required" });
     }
 
-    console.log(`💬 Chat query: ${query}${fileId ? ` (File: ${fileId})` : ""}`);
+    Logger.log(`💬 Chat query: ${query}${fileId ? ` (File: ${fileId})` : ""}`);
 
     const result = await chatService.chatWithPDF(query, fileId, chatHistory);
 
@@ -31,7 +32,7 @@ router.post("/query", async (req, res) => {
       metadata: result.metadata,
     });
   } catch (error) {
-    console.error("Error in chat query:", error);
+    Logger.error("Error in chat query:", error);
     res.status(500).json({
       error: "Chat query failed",
       message: error.message,
@@ -68,7 +69,7 @@ router.post("/analyze", async (req, res) => {
       chunksAnalyzed: analysis.chunksAnalyzed,
     });
   } catch (error) {
-    console.error("Error analyzing document:", error);
+    Logger.error("Error analyzing document:", error);
     res.status(500).json({
       error: "Document analysis failed",
       message: error.message,
@@ -108,7 +109,7 @@ router.post("/improve", async (req, res) => {
       improvementType: improvement.improvementType,
     });
   } catch (error) {
-    console.error("Error improving section:", error);
+    Logger.error("Error improving section:", error);
     res.status(500).json({
       error: "Section improvement failed",
       message: error.message,
@@ -143,7 +144,7 @@ router.get("/suggestions/:fileId", async (req, res) => {
       documentType: documentType,
     });
   } catch (error) {
-    console.error("Error generating suggestions:", error);
+    Logger.error("Error generating suggestions:", error);
     res.status(500).json({
       error: "Failed to generate suggestions",
       message: error.message,
@@ -212,7 +213,7 @@ router.get("/search", async (req, res) => {
       totalResults: results.length,
     });
   } catch (error) {
-    console.error("Error searching documents:", error);
+    Logger.error("Error searching documents:", error);
     res.status(500).json({
       error: "Search failed",
       message: error.message,
@@ -254,7 +255,7 @@ router.get("/context/:fileId", async (req, res) => {
       totalChunks: chunks.length,
     });
   } catch (error) {
-    console.error("Error getting context:", error);
+    Logger.error("Error getting context:", error);
     res.status(500).json({
       error: "Failed to get context",
       message: error.message,
@@ -308,7 +309,7 @@ router.post("/compare", async (req, res) => {
       comparisonType: comparisonType || "general",
     });
   } catch (error) {
-    console.error("Error comparing documents:", error);
+    Logger.error("Error comparing documents:", error);
     res.status(500).json({
       error: "Document comparison failed",
       message: error.message,

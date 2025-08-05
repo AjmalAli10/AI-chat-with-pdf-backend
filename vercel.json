@@ -9,5 +9,8 @@
       "src": "/(.*)",
       "dest": "/api/server.js"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
